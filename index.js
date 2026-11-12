@@ -410,7 +410,10 @@ function normalizeExamples(rawExamples) {
       if (item && typeof item === 'object') {
         const target = item.sentence || item.target || item.text || '';
         const english = item.translation || item.english || item.meaning || '';
-        return target && english ? `${target} — ${english}` : target || english;
+        if (target && english) return `${target} — ${english}`;
+        if (target || english) return target || english;
+        const vals = Object.values(item).filter((v) => typeof v === 'string' && v.trim());
+        return vals.length >= 2 ? `${vals[0]} — ${vals[1]}` : vals[0] || '';
       }
       return '';
     })
@@ -427,15 +430,15 @@ Respond with valid JSON only (no markdown fences, no extra prose).
 Always return a JSON object with these exact keys:
 - "primaryText": string (accurate natural translation in the target language, or corrected text when asked to correct)
 - "phonetic": string (romanization/pronunciation guide if target language uses non-Latin script, otherwise "")
-- "examples": array of 2-3 short example sentences showing how the translated/corrected phrase is used in the target language with English translations
+- "examples": array of 2-3 strings. Each string MUST be a sentence written in the TARGET LANGUAGE using "primaryText", followed by " — " and its English translation. Example format: ["¡Hola! ¿Cómo estás? — Hey, how are you?", "¡Hola! ¿Qué tal? — Hey, what's up?"]. NEVER return English-only sentences in "examples".
 - "history": string (1-2 sentence origin, etymology, or cultural background behind the phrase/expression, or "" if purely literal)
 - "note": string (brief grammar/correction tip if helpful, otherwise "")
-- "alternative": string (optional casual or formal alternative phrasing, otherwise "")`;
+- "alternative": string (optional casual or formal alternative phrasing in the target language, otherwise "")`;
 
   const userPrompt =
     mode === 'correct'
-      ? `Correct the grammar, spelling, and natural phrasing of: "${text}". Also translate the corrected text into ${lang.name}. Provide 2-3 example sentences using it in "examples", explain any fixes in "note", and include a short origin/cultural note in "history" if relevant.`
-      : `Translate "${text}" into ${lang.name}. Include 2-3 natural example sentences using the translated phrase in "examples" (with English translations) and a short history/cultural origin behind it in "history".`;
+      ? `Correct the grammar, spelling, and natural phrasing of: "${text}". Also translate the corrected text into ${lang.name}. In "examples", provide 2-3 ${lang.name} sentences showing the ${lang.name} translation in use, formatted as "<${lang.name} sentence> — <English translation>". Explain any fixes in "note", and include a short origin/cultural note in "history" if relevant.`
+      : `Translate "${text}" into ${lang.name} (put that ${lang.name} translation in "primaryText"). In "examples", provide 2-3 natural ${lang.name} sentences that use the ${lang.name} translation ("primaryText"), each formatted strictly as "<${lang.name} sentence> — <English translation>". Do NOT put English-only sentences in "examples". Also include a short history/cultural origin behind the phrase in "history".`;
 
   let completion;
   try {
